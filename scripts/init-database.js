@@ -10,11 +10,21 @@ if (!fs.existsSync(dataDir)) {
 
 // Import sqlite3 with error handling
 let sqlite3;
+
 try {
-  sqlite3 = require('sqlite3').verbose();
-} catch (error) {
-  console.error('SQLite3 not installed. Please run: npm install sqlite3');
-  process.exit(1);
+  // Try to require sqlite3 from different possible locations
+  sqlite3 = require('sqlite3');
+} catch (err) {
+  try {
+    sqlite3 = require('../node_modules/sqlite3');
+  } catch (err2) {
+    try {
+      sqlite3 = require('../node_modules/.pnpm/sqlite3@5.1.7/node_modules/sqlite3');
+    } catch (err3) {
+      console.error('SQLite3 not installed. Please run: npm install sqlite3');
+      process.exit(1);
+    }
+  }
 }
 
 // Create database
