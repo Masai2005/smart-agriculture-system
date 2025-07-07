@@ -26,7 +26,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { sensor_id, moisture_value, temperature, humidity } = body
+    const { sensor_id, moisture_value } = body
 
     if (!sensor_id || moisture_value === undefined) {
       return NextResponse.json({ error: "sensor_id and moisture_value are required" }, { status: 400 })
@@ -35,8 +35,7 @@ export async function POST(request: NextRequest) {
     const result = moistureDataOperations.create({
       sensor_id,
       moisture_value,
-      temperature,
-      humidity,
+      timestamp: new Date().toISOString(), // API calls will generate their own timestamp
     })
 
     return NextResponse.json({ message: "Data recorded successfully", id: result.lastInsertRowid }, { status: 201 })

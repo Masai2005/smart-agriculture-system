@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { useRouter } from "next/navigation" // Import the router
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -21,25 +22,27 @@ import {
 } from "lucide-react"
 import type { SensorWithLatestData, MoistureData } from "@/lib/database"
 import { exportToPDF, exportToExcel, exportToCSV, type ExportData } from "@/lib/export-utils"
-import { format, subDays } from "date-fns"
+import { format, subDays, formatDistanceToNow } from "date-fns"
 import SensorRegistrationForm from "./sensor-registration-form"
 import SensorManagement from "./sensor-management"
 import { ThemeToggle } from "./theme-toggle"
 
-export default function Dashboard() {
-  const [sensors, setSensors] = useState<SensorWithLatestData[]>([])
+interface DashboardProps {
+  sensors: SensorWithLatestData[]
+}
+
+export function Dashboard({ sensors }: DashboardProps) {
+  const router = useRouter() // Get the router instance
   const [moistureData, setMoistureData] = useState<MoistureData[]>([])
   const [loading, setLoading] = useState(true)
   const [showRegistration, setShowRegistration] = useState(false)
   const [isOnline, setIsOnline] = useState(true)
 
   useEffect(() => {
-    fetchSensors()
     fetchMoistureData()
 
     // Set up real-time updates
     const interval = setInterval(() => {
-      fetchSensors()
       fetchMoistureData()
     }, 30000) // Update every 30 seconds
 
@@ -57,16 +60,6 @@ export default function Dashboard() {
     }
   }, [])
 
-  const fetchSensors = async () => {
-    try {
-      const response = await fetch("/api/sensors")
-      const data = await response.json()
-      setSensors(data)
-    } catch (error) {
-      console.error("Error fetching sensors:", error)
-    }
-  }
-
   const fetchMoistureData = async () => {
     try {
       const response = await fetch("/api/moisture-data?hours=24")
@@ -77,6 +70,11 @@ export default function Dashboard() {
       console.error("Error fetching moisture data:", error)
       setLoading(false)
     }
+  }
+
+  // Define the missing function here
+  const handleDataUpdate = () => {
+    router.refresh()
   }
 
   const getStatusColor = (value: number) => {
@@ -99,7 +97,6 @@ export default function Dashboard() {
       time: format(new Date(item.timestamp), "HH:mm"),
       fullTime: format(new Date(item.timestamp), "PPp"),
       moisture: item.moisture_value,
-      temperature: item.temperature,
       sensor: item.sensor_id,
     }))
 
@@ -149,10 +146,11 @@ export default function Dashboard() {
     )
   }
 
+  const totalSensors = sensors.length
   const activeSensors = sensors.filter((s) => s.status === "active").length
   const avgMoisture =
-    sensors.length > 0
-      ? Math.round(sensors.reduce((acc, s) => acc + (s.latest_reading?.moisture_value || 0), 0) / sensors.length)
+    totalSensors > 0
+      ? Math.round(sensors.reduce((acc, s) => acc + (s.latest_reading?.moisture_value || 0), 0) / totalSensors)
       : 0
   const lowMoistureAlerts = sensors.filter((s) => (s.latest_reading?.moisture_value || 0) < 30).length
 
@@ -343,13 +341,6 @@ export default function Dashboard() {
                       {sensor.latest_reading?.moisture_value?.toFixed(1) || "N/A"}%
                     </div>
 
-                    {sensor.latest_reading?.temperature && (
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <Thermometer className="w-4 h-4" />
-                        <span>{sensor.latest_reading.temperature.toFixed(1)}°C</span>
-                      </div>
-                    )}
-
                     <div className="text-xs text-muted-foreground space-y-1">
                       <div>
                         Last:{" "}
@@ -440,7 +431,8 @@ export default function Dashboard() {
           </TabsContent>
 
           <TabsContent value="management">
-            <SensorManagement sensors={sensors} onSensorUpdate={fetchSensors} />
+            {/* Pass the new refresh function to the component */}
+            <SensorManagement sensors={sensors} onSensorUpdate={handleDataUpdate} />
           </TabsContent>
         </Tabs>
 
@@ -449,7 +441,7 @@ export default function Dashboard() {
           <SensorRegistrationForm
             onClose={() => setShowRegistration(false)}
             onSensorAdded={() => {
-              fetchSensors()
+              handleDataUpdate() // Use the refresh function here as well
               setShowRegistration(false)
             }}
           />

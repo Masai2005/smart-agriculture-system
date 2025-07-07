@@ -9,7 +9,7 @@ const char* password = "YOUR_WIFI_PASSWORD";
 // MQTT Broker settings
 const char* mqtt_server = "test.mosquitto.org";
 const int mqtt_port = 1883;
-const char* sensor_id = "ESP32_001"; // Change this for each sensor
+const char* sensor_id = "SENSOR_01"; // Change this for each sensor
 
 // Sensor pins
 const int MOISTURE_PIN = A0;
@@ -106,7 +106,7 @@ void registerSensor() {
   StaticJsonDocument<200> doc;
   doc["sensor_id"] = sensor_id;
   doc["type"] = "soil_moisture";
-  doc["location"] = "Field A - ESP32 Sensor"; // Customize this
+  doc["location"] = "Dar es Salaam"; // Customize this
   doc["timestamp"] = millis();
   doc["ip_address"] = WiFi.localIP().toString();
   

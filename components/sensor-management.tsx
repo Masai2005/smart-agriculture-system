@@ -5,10 +5,11 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Settings, Trash2, MoreVertical } from "lucide-react"
+import { Settings, Trash2, MoreVertical, Edit } from "lucide-react"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import type { SensorWithLatestData } from "@/lib/database"
 import { format } from "date-fns"
+import { SensorForm } from "./sensor-form" // Import the new form
 
 interface SensorManagementProps {
   sensors: SensorWithLatestData[]
@@ -17,6 +18,7 @@ interface SensorManagementProps {
 
 export default function SensorManagement({ sensors, onSensorUpdate }: SensorManagementProps) {
   const [loading, setLoading] = useState<string | null>(null)
+  const [editingSensor, setEditingSensor] = useState<SensorWithLatestData | null>(null)
 
   const handleDeleteSensor = async (sensorId: string) => {
     if (!confirm(`Are you sure you want to delete sensor ${sensorId}?`)) {
@@ -146,10 +148,8 @@ export default function SensorManagement({ sensors, onSensorUpdate }: SensorMana
                 <TableRow>
                   <TableHead>Sensor ID</TableHead>
                   <TableHead>Location</TableHead>
-                  <TableHead>Type</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Last Reading</TableHead>
-                  <TableHead>Total Readings</TableHead>
                   <TableHead>Actions</TableHead>
                 </TableRow>
               </TableHeader>
@@ -158,7 +158,6 @@ export default function SensorManagement({ sensors, onSensorUpdate }: SensorMana
                   <TableRow key={sensor.sensor_id}>
                     <TableCell className="font-medium">{sensor.sensor_id}</TableCell>
                     <TableCell>{sensor.location}</TableCell>
-                    <TableCell className="capitalize">{sensor.type.replace("_", " ")}</TableCell>
                     <TableCell>
                       <Badge variant={sensor.status === "active" ? "default" : "secondary"}>{sensor.status}</Badge>
                     </TableCell>
@@ -167,9 +166,11 @@ export default function SensorManagement({ sensors, onSensorUpdate }: SensorMana
                         ? format(new Date(sensor.latest_reading.timestamp), "PPp")
                         : "No data"}
                     </TableCell>
-                    <TableCell>{sensor.readings_count}</TableCell>
                     <TableCell>
                       <div className="flex gap-2">
+                        <Button variant="outline" size="sm" onClick={() => setEditingSensor(sensor)}>
+                          <Edit className="w-4 h-4" />
+                        </Button>
                         <Button
                           variant="outline"
                           size="sm"
@@ -196,6 +197,17 @@ export default function SensorManagement({ sensors, onSensorUpdate }: SensorMana
           </div>
         </CardContent>
       </Card>
+
+      {editingSensor && (
+        <SensorForm
+          sensor={editingSensor}
+          onClose={() => setEditingSensor(null)}
+          onFinished={() => {
+            setEditingSensor(null)
+            onSensorUpdate()
+          }}
+        />
+      )}
     </div>
   )
 }

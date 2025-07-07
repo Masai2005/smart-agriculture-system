@@ -1,5 +1,6 @@
 import mqtt from "mqtt"
-import { moistureDataOperations } from "./database"
+// Make sure to import sensorOperations
+import { moistureDataOperations, sensorOperations } from "./database"
 
 class MQTTClient {
   private client: mqtt.MqttClient | null = null
@@ -46,8 +47,8 @@ class MQTTClient {
   private subscribeToTopics() {
     if (!this.client) return
 
-    // Subscribe to sensor data topics
-    const topics = ["sensor/+/moisture", "sensor/+/register", "sensor/+/status"]
+    // Subscribe to sensor data topics, updated to use 'data'
+    const topics = ["sensor/+/data", "sensor/+/register", "sensor/+/status"]
 
     topics.forEach((topic) => {
       this.client!.subscribe(topic, (err) => {
@@ -61,16 +62,23 @@ class MQTTClient {
   }
 
   private handleMessage(topic: string, message: Buffer) {
+    console.log(`[MQTT] Received raw message on topic: ${topic}`); // Log raw message
     try {
       const data = JSON.parse(message.toString())
       const topicParts = topic.split("/")
+
+      if (topicParts.length < 3) {
+        console.warn(`[MQTT] Ignoring malformed topic: ${topic}`)
+        return
+      }
+
       const sensorId = topicParts[1]
       const messageType = topicParts[2]
 
-      console.log(`Received ${messageType} from ${sensorId}:`, data)
+      console.log(`[MQTT] Parsed message from ${sensorId} (${messageType}):`, data)
 
       switch (messageType) {
-        case "moisture":
+        case "data":
           this.handleMoistureData(sensorId, data)
           break
         case "register":
@@ -87,15 +95,37 @@ class MQTTClient {
 
   private handleMoistureData(sensorId: string, data: any) {
     try {
+      // First, ensure the sensor exists in the database.
+      let sensor = sensorOperations.getById(sensorId)
+
+      // If sensor doesn't exist, register it automatically.
+      if (!sensor) {
+        console.log(`[DB] Sensor ${sensorId} not found. Registering automatically.`)
+        sensorOperations.create({
+          sensor_id: sensorId,
+          location: "Unassigned Field", // Default location
+          type: "Soil Moisture", // Default type
+          calibration_min: 0,
+          calibration_max: 100,
+          status: "active",
+        })
+        console.log(`[DB] Sensor ${sensorId} registered.`)
+      }
+
+      // Now, insert the moisture data.
+      const { moisture, timestamp } = data
+      if (moisture === undefined) {
+        console.error(`[DB] 'moisture' is missing from data payload for sensor ${sensorId}`)
+        return
+      }
       moistureDataOperations.create({
         sensor_id: sensorId,
-        moisture_value: data.moisture || data.value,
-        temperature: data.temperature,
-        humidity: data.humidity,
+        moisture_value: moisture,
+        timestamp,
       })
-      console.log(`Stored moisture data for sensor ${sensorId}`)
+      console.log(`[DB] Successfully inserted data for sensor ${sensorId}`)
     } catch (error) {
-      console.error("Error storing moisture data:", error)
+      console.error(`[DB] Failed to insert data for sensor ${sensorId}:`, error)
     }
   }
 

@@ -23,8 +23,6 @@ export interface MoistureData {
   sensor_id: string
   timestamp: string
   moisture_value: number
-  temperature?: number
-  humidity?: number
 }
 
 export interface SensorWithLatestData extends Sensor {
@@ -52,12 +50,11 @@ export const sensorOperations = {
 
   // Read all sensors with latest data
   getAll: (): SensorWithLatestData[] => {
-    const stmt = db.prepare(`
+    const rows = db.prepare(`
       SELECT 
         s.*,
+        md.id as latest_id,
         md.moisture_value as latest_moisture,
-        md.temperature as latest_temperature,
-        md.humidity as latest_humidity,
         md.timestamp as latest_timestamp,
         COUNT(md2.id) as readings_count
       FROM sensors s
@@ -70,8 +67,24 @@ export const sensorOperations = {
       LEFT JOIN moisture_data md2 ON s.sensor_id = md2.sensor_id
       GROUP BY s.sensor_id
       ORDER BY s.created_at DESC
-    `)
-    return stmt.all() as SensorWithLatestData[]
+    `).all() as any[]; // Get raw rows as an array of any type
+
+    // Manually map the flat database result to the nested object structure
+    return rows.map(row => {
+      const { latest_id, latest_moisture, latest_timestamp, readings_count, ...sensorData } = row;
+      
+      const sensor: SensorWithLatestData = {
+        ...sensorData,
+        readings_count,
+        latest_reading: latest_id ? {
+          id: latest_id,
+          sensor_id: sensorData.sensor_id,
+          moisture_value: latest_moisture,
+          timestamp: latest_timestamp,
+        } : undefined,
+      };
+      return sensor;
+    });
   },
 
   // Read single sensor
@@ -104,12 +117,14 @@ export const sensorOperations = {
 // Moisture data operations
 export const moistureDataOperations = {
   // Create new reading
-  create: (data: Omit<MoistureData, "id" | "timestamp">) => {
+  create: (data: Omit<MoistureData, "id">) => {
     const stmt = db.prepare(`
-      INSERT INTO moisture_data (sensor_id, moisture_value, temperature, humidity)
-      VALUES (?, ?, ?, ?)
+      INSERT INTO moisture_data (sensor_id, moisture_value, timestamp)
+      VALUES (?, ?, ?)
     `)
-    return stmt.run(data.sensor_id, data.moisture_value, data.temperature, data.humidity)
+    // Use provided timestamp or let the database default handle it
+    const timestamp = data.timestamp || new Date().toISOString()
+    return stmt.run(data.sensor_id, data.moisture_value, timestamp)
   },
 
   // Get readings for a sensor with pagination
