@@ -33,8 +33,6 @@ export const exportToPDF = (data: ExportData) => {
     sensor.sensor_id,
     sensor.location,
     sensor.status,
-    sensor.latest_reading?.moisture_value?.toFixed(1) + "%" || "N/A",
-    sensor.latest_reading?.temperature?.toFixed(1) + "°C" || "N/A",
     sensor.readings_count.toString(),
   ])
 
@@ -57,8 +55,7 @@ export const exportToPDF = (data: ExportData) => {
       reading.sensor_id,
       format(new Date(reading.timestamp), "PPp"),
       reading.moisture_value.toFixed(1) + "%",
-      reading.temperature?.toFixed(1) + "°C" || "N/A",
-      reading.humidity?.toFixed(1) + "%" || "N/A",
+
     ])
 
   autoTable(doc, {
@@ -84,8 +81,6 @@ export const exportToExcel = (data: ExportData) => {
     Type: sensor.type,
     Status: sensor.status,
     "Latest Moisture (%)": sensor.latest_reading?.moisture_value?.toFixed(1) || "N/A",
-    "Latest Temperature (°C)": sensor.latest_reading?.temperature?.toFixed(1) || "N/A",
-    "Latest Humidity (%)": sensor.latest_reading?.humidity?.toFixed(1) || "N/A",
     "Total Readings": sensor.readings_count,
     "Created At": format(new Date(sensor.created_at), "PPP"),
     "Last Updated": format(new Date(sensor.updated_at), "PPP"),
@@ -99,8 +94,6 @@ export const exportToExcel = (data: ExportData) => {
     "Sensor ID": reading.sensor_id,
     Timestamp: format(new Date(reading.timestamp), "PPpp"),
     "Moisture (%)": reading.moisture_value.toFixed(1),
-    "Temperature (°C)": reading.temperature?.toFixed(1) || "N/A",
-    "Humidity (%)": reading.humidity?.toFixed(1) || "N/A",
   }))
 
   const moistureSheet = XLSX.utils.json_to_sheet(moistureDataFormatted)
@@ -140,8 +133,6 @@ export const exportToCSV = (data: ExportData) => {
     sensor_id: reading.sensor_id,
     timestamp: format(new Date(reading.timestamp), "yyyy-MM-dd HH:mm:ss"),
     moisture_percentage: reading.moisture_value.toFixed(1),
-    temperature_celsius: reading.temperature?.toFixed(1) || "",
-    humidity_percentage: reading.humidity?.toFixed(1) || "",
   }))
 
   const worksheet = XLSX.utils.json_to_sheet(csvData)

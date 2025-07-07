@@ -1,25 +1,26 @@
-import { type NextRequest, NextResponse } from "next/server"
-import { moistureDataOperations } from "@/lib/database"
+import { NextResponse, type NextRequest } from "next/server";
+import { moistureDataOperations } from "@/lib/database";
 
 export async function GET(request: NextRequest) {
+  const { searchParams } = new URL(request.url);
+  const sensorId = searchParams.get("sensor_id");
+  const hours = searchParams.get("hours");
+
   try {
-    const { searchParams } = new URL(request.url)
-    const sensorId = searchParams.get("sensor_id")
-    const hours = Number.parseInt(searchParams.get("hours") || "24")
-    const limit = Number.parseInt(searchParams.get("limit") || "100")
-    const offset = Number.parseInt(searchParams.get("offset") || "0")
-
-    let data
+    let data;
     if (sensorId) {
-      data = moistureDataOperations.getBySensor(sensorId, limit, offset)
+      data = moistureDataOperations.getBySensor(sensorId);
+    } else if (hours) {
+      data = moistureDataOperations.getRecent(parseInt(hours, 10));
     } else {
-      data = moistureDataOperations.getRecent(hours)
+      data = moistureDataOperations.getAll();
     }
-
-    return NextResponse.json(data)
+    // Ensure data is always sorted by timestamp ascending
+    data.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+    return NextResponse.json(data);
   } catch (error) {
-    console.error("Error fetching moisture data:", error)
-    return NextResponse.json({ error: "Failed to fetch moisture data" }, { status: 500 })
+    console.error("Failed to fetch moisture data:", error);
+    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
   }
 }
 

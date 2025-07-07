@@ -89,10 +89,9 @@ export function Dashboard({ sensors }: DashboardProps) {
     return "Optimal"
   }
 
-  // Prepare chart data with better formatting
+  // Get the most recent 100 data points for the chart
   const chartData = moistureData
-    .slice(0, 100)
-    .reverse()
+    .slice(-100) // Take the last 100 items, which are the most recent
     .map((item) => ({
       time: format(new Date(item.timestamp), "HH:mm"),
       fullTime: format(new Date(item.timestamp), "PPp"),
@@ -148,10 +147,16 @@ export function Dashboard({ sensors }: DashboardProps) {
 
   const totalSensors = sensors.length
   const activeSensors = sensors.filter((s) => s.status === "active").length
+  
+  // Correctly calculate average moisture from all readings in the last 24 hours
   const avgMoisture =
-    totalSensors > 0
-      ? Math.round(sensors.reduce((acc, s) => acc + (s.latest_reading?.moisture_value || 0), 0) / totalSensors)
+    moistureData.length > 0
+      ? Math.round(
+          moistureData.reduce((acc, reading) => acc + reading.moisture_value, 0) /
+            moistureData.length,
+        )
       : 0
+      
   const lowMoistureAlerts = sensors.filter((s) => (s.latest_reading?.moisture_value || 0) < 30).length
 
   return (

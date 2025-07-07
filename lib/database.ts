@@ -138,14 +138,17 @@ export const moistureDataOperations = {
     return stmt.all(sensor_id, limit, offset) as MoistureData[]
   },
 
-  // Get recent readings for dashboard
-  getRecent: (hours = 24): MoistureData[] => {
-    const stmt = db.prepare(`
-      SELECT * FROM moisture_data 
-      WHERE timestamp >= datetime('now', '-${hours} hours')
-      ORDER BY timestamp DESC
-    `)
-    return stmt.all() as MoistureData[]
+  // Get all readings
+  getAll: (): MoistureData[] => {
+    return db.prepare("SELECT * FROM moisture_data ORDER BY timestamp ASC").all() as MoistureData[]
+  },
+
+  // Get recent readings within a specific number of hours
+  getRecent: (hours: number): MoistureData[] => {
+    const since = new Date(Date.now() - hours * 60 * 60 * 1000).toISOString()
+    return db
+      .prepare("SELECT * FROM moisture_data WHERE timestamp >= ? ORDER BY timestamp ASC")
+      .all(since) as MoistureData[]
   },
 
   // Delete old data (cleanup)
