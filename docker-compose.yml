@@ -12,7 +12,7 @@ services:
       - ./scripts:/app/scripts
     environment:
       - NODE_ENV=production
-    command: sh -c "pnpm run db:init && pnpm run build && pnpm start"
+    command: sh -c "npm run db:init && npm start"
 
   app-dev:
     build: .
@@ -23,6 +23,7 @@ services:
     volumes:
       - .:/app
       - /app/node_modules
+      - /app/.next
     environment:
       - NODE_ENV=development
-    command: sh -c "pnpm run db:init && pnpm run dev"
+    command: sh -c "npm run db:init && npm run dev"

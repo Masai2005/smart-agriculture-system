@@ -1,8 +1,8 @@
-import Database from "sqlite3"
+import Database from "better-sqlite3"
 import path from "path"
 
 const dbPath = path.join(process.cwd(), "data", "agriculture.db")
-const db = new Database.Database(dbPath)
+const db = new Database(dbPath)
 
 // Enable WAL mode for better concurrent access
 db.exec("PRAGMA journal_mode = WAL")
@@ -71,13 +71,13 @@ export const sensorOperations = {
       GROUP BY s.sensor_id
       ORDER BY s.created_at DESC
     `)
-    return stmt.all() as unknown as SensorWithLatestData[]
+    return stmt.all() as SensorWithLatestData[]
   },
 
   // Read single sensor
   getById: (sensor_id: string): Sensor | undefined => {
     const stmt = db.prepare("SELECT * FROM sensors WHERE sensor_id = ?")
-    return stmt.get(sensor_id) as unknown as Sensor | undefined
+    return stmt.get(sensor_id) as Sensor | undefined
   },
 
   // Update sensor
@@ -120,7 +120,7 @@ export const moistureDataOperations = {
       ORDER BY timestamp DESC 
       LIMIT ? OFFSET ?
     `)
-    return stmt.all(sensor_id, limit, offset) as unknown as MoistureData[]
+    return stmt.all(sensor_id, limit, offset) as MoistureData[]
   },
 
   // Get recent readings for dashboard
@@ -130,7 +130,7 @@ export const moistureDataOperations = {
       WHERE timestamp >= datetime('now', '-${hours} hours')
       ORDER BY timestamp DESC
     `)
-    return stmt.all() as unknown as MoistureData[]
+    return stmt.all() as MoistureData[]
   },
 
   // Delete old data (cleanup)
