@@ -1,6 +1,5 @@
 import mqtt from "mqtt"
-// Make sure to import sensorOperations
-import { moistureDataOperations, sensorOperations } from "./database"
+import { moistureDataOperations, sensorOperations } from "./database" // Ensure both are imported
 
 class MQTTClient {
   private client: mqtt.MqttClient | null = null
@@ -95,24 +94,20 @@ class MQTTClient {
 
   private handleMoistureData(sensorId: string, data: any) {
     try {
-      // First, ensure the sensor exists in the database.
+      // First, ensure the sensor exists. If not, create it.
       let sensor = sensorOperations.getById(sensorId)
-
-      // If sensor doesn't exist, register it automatically.
       if (!sensor) {
         console.log(`[DB] Sensor ${sensorId} not found. Registering automatically.`)
         sensorOperations.create({
           sensor_id: sensorId,
           location: "Unassigned Field", // Default location
-          type: "Soil Moisture", // Default type
-          calibration_min: 0,
-          calibration_max: 100,
+          type: "Soil Moisture",
           status: "active",
+          calibration_min: 0,
+          calibration_max: 0
         })
-        console.log(`[DB] Sensor ${sensorId} registered.`)
       }
 
-      // Now, insert the moisture data.
       const { moisture, timestamp } = data
       if (moisture === undefined) {
         console.error(`[DB] 'moisture' is missing from data payload for sensor ${sensorId}`)

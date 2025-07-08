@@ -33,11 +33,12 @@ export const exportToPDF = (data: ExportData) => {
     sensor.sensor_id,
     sensor.location,
     sensor.status,
+    sensor.latest_reading ? `${sensor.latest_reading.moisture_value.toFixed(1)}%` : "N/A",
     sensor.readings_count.toString(),
   ])
 
   autoTable(doc, {
-    head: [["Sensor ID", "Location", "Status", "Latest Moisture", "Temperature", "Total Readings"]],
+    head: [["Sensor ID", "Location", "Status", "Latest Moisture", "Total Readings"]],
     body: sensorTableData,
     startY: 70,
     styles: { fontSize: 8 },
@@ -55,11 +56,10 @@ export const exportToPDF = (data: ExportData) => {
       reading.sensor_id,
       format(new Date(reading.timestamp), "PPp"),
       reading.moisture_value.toFixed(1) + "%",
-
     ])
 
   autoTable(doc, {
-    head: [["Sensor ID", "Timestamp", "Moisture", "Temperature", "Humidity"]],
+    head: [["Sensor ID", "Timestamp", "Moisture"]],
     body: moistureTableData,
     startY: finalY + 30,
     styles: { fontSize: 8 },

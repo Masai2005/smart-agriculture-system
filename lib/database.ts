@@ -151,6 +151,13 @@ export const moistureDataOperations = {
       .all(since) as MoistureData[]
   },
 
+  // Get readings for a specific date range
+  getByDateRange: (from: string, to: string): MoistureData[] => {
+    return db
+      .prepare("SELECT * FROM moisture_data WHERE timestamp BETWEEN ? AND ? ORDER BY timestamp ASC")
+      .all(from, to) as MoistureData[]
+  },
+
   // Delete old data (cleanup)
   deleteOlderThan: (days: number) => {
     const stmt = db.prepare(`

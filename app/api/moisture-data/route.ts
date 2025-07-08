@@ -4,16 +4,18 @@ import { moistureDataOperations } from "@/lib/database";
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const sensorId = searchParams.get("sensor_id");
-  const hours = searchParams.get("hours");
+  const from = searchParams.get("from");
+  const to = searchParams.get("to");
 
   try {
     let data;
-    if (sensorId) {
+    if (from && to) {
+      data = moistureDataOperations.getByDateRange(from, to);
+    } else if (sensorId) {
       data = moistureDataOperations.getBySensor(sensorId);
-    } else if (hours) {
-      data = moistureDataOperations.getRecent(parseInt(hours, 10));
     } else {
-      data = moistureDataOperations.getAll();
+      // Default to last 24 hours if no range is specified
+      data = moistureDataOperations.getRecent(24);
     }
     // Ensure data is always sorted by timestamp ascending
     data.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
