@@ -109,6 +109,16 @@ MQTT_BROKER_URL=mqtt://test.mosquitto.org:1883
 - ⚠️ May experience downtime or instability
 - ⚠️ No data persistence guarantees
 
+**Security Feature - Sensor Filtering:**
+To prevent unauthorized sensors from adding data to your system, the application includes a sensor filtering mechanism:
+
+\`\`\`bash
+# Add allowed sensors to your .env.local file
+ALLOWED_SENSORS=ESP32_001,ESP32_002,ESP32_003,SENSOR_01,AGRI_001
+\`\`\`
+
+Only sensors with IDs in this list (or matching allowed prefixes like \`ESP32_\`, \`SENSOR_\`, \`AGRI_\`) will be processed.
+
 **Available Ports:**
 - 1883: MQTT, unencrypted, unauthenticated
 - 8883: MQTT, encrypted, unauthenticated

@@ -4,13 +4,58 @@ import { moistureDataOperations, sensorOperations } from "./database" // Ensure 
 class MQTTClient {
   private client: mqtt.MqttClient | null = null
   private isConnected = false
+  private allowedSensors: Set<string> = new Set()
 
   constructor() {
+    this.initializeAllowedSensors()
     this.connect()
   }
 
+  private initializeAllowedSensors() {
+    // Load allowed sensor IDs from environment variable or use defaults
+    const allowedSensorsList = process.env.ALLOWED_SENSORS?.split(',') || [
+      'SENSOR_01',
+      'ESP32_001', 
+      'ESP32_002',
+      'ESP32_TEST'
+    ]
+    
+    this.allowedSensors = new Set(allowedSensorsList.map(id => id.trim()))
+    console.log('[MQTT] Allowed sensors:', Array.from(this.allowedSensors))
+  }
+
+  private isAllowedSensor(sensorId: string): boolean {
+    // Check if sensor ID is explicitly in our allowed list
+    const isExplicitlyAllowed = this.allowedSensors.has(sensorId)
+    
+    // Check if sensor has allowed prefixes (more restrictive now)
+    const allowedPrefixes = ['ESP32_', 'SENSOR_', 'AGRI_']
+    const hasAllowedPrefix = allowedPrefixes.some(prefix => sensorId.startsWith(prefix))
+    
+    const isAllowed = isExplicitlyAllowed || hasAllowedPrefix
+    
+    if (!isAllowed) {
+      console.log(`[MQTT] ❌ Unauthorized sensor rejected: ${sensorId}`)
+      console.log(`[MQTT] Allowed sensors: ${Array.from(this.allowedSensors).join(', ')}`)
+      console.log(`[MQTT] Allowed prefixes: ${allowedPrefixes.join(', ')}`)
+    } else {
+      console.log(`[MQTT] ✅ Authorized sensor: ${sensorId}`)
+    }
+    
+    return isAllowed
+  }
+
+  // Enhanced connection with public broker warnings
   private connect() {
     const brokerUrl = process.env.MQTT_BROKER_URL || "mqtt://test.mosquitto.org:1883"
+    
+    // Warn about public broker usage
+    if (brokerUrl.includes('test.mosquitto.org')) {
+      console.warn('⚠️  [MQTT] WARNING: Using public test broker - not suitable for production!')
+      console.warn('⚠️  [MQTT] Anyone can publish to this broker. Sensor filtering is CRITICAL.')
+      console.warn('⚠️  [MQTT] Consider using a private MQTT broker for production.')
+    }
+    
     const options: mqtt.IClientOptions = {
       clientId: `agriculture_dashboard_${Math.random().toString(16).substr(2, 8)}`,
       username: process.env.MQTT_USERNAME,
@@ -21,7 +66,8 @@ class MQTTClient {
       keepalive: 60,
     }
 
-    console.log("Connecting to MQTT broker:", brokerUrl)
+    console.log("[MQTT] Connecting to broker:", brokerUrl)
+    console.log(`[MQTT] Sensor filtering enabled: ${this.allowedSensors.size} allowed sensors`)
     this.client = mqtt.connect(brokerUrl, options)
 
     this.client.on("connect", () => {
@@ -74,10 +120,20 @@ class MQTTClient {
       const sensorId = topicParts[1]
       const messageType = topicParts[2]
 
+      // Additional filtering: Reject sensors that don't match our expected prefixes at the topic level
+      const validPrefixes = ['ESP32_', 'SENSOR_', 'AGRI_']
+      const hasValidPrefix = validPrefixes.some(prefix => sensorId.startsWith(prefix))
+      
+      if (!hasValidPrefix) {
+        console.log(`[MQTT] Rejecting message from sensor with invalid prefix: ${sensorId}`)
+        return
+      }
+
       console.log(`[MQTT] Parsed message from ${sensorId} (${messageType}):`, data)
 
       switch (messageType) {
         case "data":
+        case "moisture": // Handle both for backward compatibility
           this.handleMoistureData(sensorId, data)
           break
         case "register":
@@ -86,6 +142,8 @@ class MQTTClient {
         case "status":
           this.handleStatusUpdate(sensorId, data)
           break
+        default:
+          console.log(`[MQTT] Ignoring unknown message type: ${messageType}`)
       }
     } catch (error) {
       console.error("Error processing MQTT message:", error)
@@ -94,7 +152,13 @@ class MQTTClient {
 
   private handleMoistureData(sensorId: string, data: any) {
     try {
-      // First, ensure the sensor exists. If not, create it.
+      // Check if sensor is in our allowed list
+      if (!this.isAllowedSensor(sensorId)) {
+        console.log(`[MQTT] Ignoring data from unauthorized sensor: ${sensorId}`)
+        return
+      }
+
+      // First, ensure the sensor exists. If not, create it only if it's allowed.
       let sensor = sensorOperations.getById(sensorId)
       if (!sensor) {
         console.log(`[DB] Sensor ${sensorId} not found. Registering automatically.`)
@@ -125,12 +189,22 @@ class MQTTClient {
   }
 
   private handleSensorRegistration(sensorId: string, data: any) {
-    // Handle automatic sensor registration
+    // Handle automatic sensor registration only for allowed sensors
+    if (!this.isAllowedSensor(sensorId)) {
+      console.log(`[MQTT] Ignoring registration from unauthorized sensor: ${sensorId}`)
+      return
+    }
+    
     console.log(`Sensor registration request from ${sensorId}:`, data)
     // This could trigger a webhook or notification for manual approval
   }
 
   private handleStatusUpdate(sensorId: string, data: any) {
+    if (!this.isAllowedSensor(sensorId)) {
+      console.log(`[MQTT] Ignoring status update from unauthorized sensor: ${sensorId}`)
+      return
+    }
+    
     console.log(`Status update from sensor ${sensorId}:`, data)
     // Update sensor status in database if needed
   }
@@ -161,6 +235,25 @@ class MQTTClient {
 
   public getConnectionStatus() {
     return this.isConnected
+  }
+
+  public addAllowedSensor(sensorId: string) {
+    this.allowedSensors.add(sensorId)
+    console.log(`[MQTT] Added ${sensorId} to allowed sensors list`)
+  }
+
+  public removeAllowedSensor(sensorId: string) {
+    this.allowedSensors.delete(sensorId)
+    console.log(`[MQTT] Removed ${sensorId} from allowed sensors list`)
+  }
+
+  public getAllowedSensors(): string[] {
+    return Array.from(this.allowedSensors)
+  }
+
+  public reloadAllowedSensors() {
+    console.log('[MQTT] Reloading allowed sensors from environment...')
+    this.initializeAllowedSensors()
   }
 }
 

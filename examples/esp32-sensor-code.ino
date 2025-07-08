@@ -9,7 +9,7 @@ const char* password = "YOUR_WIFI_PASSWORD";
 // MQTT Broker settings
 const char* mqtt_server = "test.mosquitto.org";
 const int mqtt_port = 1883;
-const char* sensor_id = "SENSOR_01"; // Change this for each sensor
+const char* sensor_id = "ESP32_001"; // Use ESP32_ prefix for allowed sensors
 
 // Sensor pins
 const int MOISTURE_PIN = A0;
